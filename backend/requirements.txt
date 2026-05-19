@@ -1,0 +1,11 @@
+django
+djangorestframework
+django-cors-headers
+python-dotenv
+requests
+psycopg2-binary
+dj-database-url
+fpdf2
+gunicorn
+whitenoise
+web3
