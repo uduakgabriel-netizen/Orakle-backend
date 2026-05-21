@@ -20,7 +20,7 @@ class AIWalletAnalysisView(APIView):
             ai_service = GemmaService()
             explanation = ai_service.explain_wallet(structured_data)
             
-            return standardized_response(data={"explanation": explanation})
+            return standardized_response(data={"ai_summary": explanation})
         except WalletAnalysis.DoesNotExist:
             return standardized_response(success=False, message="Analysis not found", status_code=404)
 
@@ -39,7 +39,7 @@ class AIContractAnalysisView(APIView):
             ai_service = GemmaService()
             explanation = ai_service.explain_contract(structured_data)
             
-            return standardized_response(data={"explanation": explanation})
+            return standardized_response(data={"ai_summary": explanation})
         except ContractAnalysis.DoesNotExist:
             return standardized_response(success=False, message="Analysis not found", status_code=404)
 
@@ -48,14 +48,18 @@ class AITransactionTranslateView(APIView):
         tx_id = request.data.get('id')
         try:
             analysis = TransactionAnalysis.objects.get(id=tx_id)
-            structured_data = {
-                "tx_hash": analysis.tx_hash,
-                "summary": analysis.interpretation
-            }
+            # Check if interpretation is already structured JSON (new format)
+            if isinstance(analysis.interpretation, dict):
+                explanation = analysis.interpretation
+            else:
+                # Fallback: re-generate or return as summary
+                structured_data = {
+                    "tx_hash": analysis.tx_hash,
+                    "summary": str(analysis.interpretation)
+                }
+                ai_service = GemmaService()
+                explanation = ai_service.translate_transaction(structured_data)
             
-            ai_service = GemmaService()
-            explanation = ai_service.translate_transaction(structured_data)
-            
-            return standardized_response(data={"explanation": explanation})
+            return standardized_response(data={"ai_summary": explanation})
         except TransactionAnalysis.DoesNotExist:
             return standardized_response(success=False, message="Analysis not found", status_code=404)

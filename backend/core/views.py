@@ -11,7 +11,93 @@ from contracts.models import ContractAnalysis
 from transactions.models import TransactionAnalysis
 from reports.models import Report
 
+from solana.models import SolanaWalletAnalysis, SolanaTransactionAnalysis
+
 logger = logging.getLogger('core')
+
+
+class AllHistoryView(APIView):
+    """
+    GET /api/all-history
+    Aggregates history from all analysis models.
+    """
+    def get(self, request):
+        try:
+            wallets = WalletAnalysis.objects.all().order_by('-created_at')[:20]
+            contracts = ContractAnalysis.objects.all().order_by('-created_at')[:20]
+            transactions = TransactionAnalysis.objects.all().order_by('-created_at')[:20]
+            solana_wallets = SolanaWalletAnalysis.objects.all().order_by('-created_at')[:20]
+            solana_transactions = SolanaTransactionAnalysis.objects.all().order_by('-created_at')[:20]
+
+            history = []
+
+            # Helper to check for report
+            def get_report_url(analysis_type, analysis_id):
+                report = Report.objects.filter(analysis_type=analysis_type, related_analysis_id=analysis_id).first()
+                return report.pdf_file.url if report and report.pdf_file else None
+
+            for w in wallets:
+                history.append({
+                    "id": w.id,
+                    "type": "wallet",
+                    "chain": "ethereum",
+                    "address": w.wallet_address,
+                    "risk_score": w.risk_score,
+                    "created_at": w.created_at,
+                    "report_url": get_report_url("wallet", w.id)
+                })
+
+            for c in contracts:
+                history.append({
+                    "id": c.id,
+                    "type": "contract",
+                    "chain": "ethereum",
+                    "address": c.contract_address,
+                    "risk_score": c.risk_score,
+                    "created_at": c.created_at,
+                    "report_url": get_report_url("contract", c.id)
+                })
+
+            for t in transactions:
+                history.append({
+                    "id": t.id,
+                    "type": "transaction",
+                    "chain": "ethereum",
+                    "address": t.tx_hash,
+                    "risk_score": None,
+                    "created_at": t.created_at,
+                    "report_url": get_report_url("transaction", t.id)
+                })
+            
+            for s in solana_wallets:
+                history.append({
+                    "id": s.id,
+                    "type": "solana_wallet",
+                    "chain": "solana",
+                    "address": s.wallet_address,
+                    "risk_score": s.risk_score,
+                    "created_at": s.created_at,
+                    "report_url": get_report_url("solana_wallet", s.id)
+                })
+
+            for st in solana_transactions:
+                history.append({
+                    "id": st.id,
+                    "type": "solana_transaction",
+                    "chain": "solana",
+                    "address": st.signature,
+                    "risk_score": None,
+                    "created_at": st.created_at,
+                    "report_url": get_report_url("solana_transaction", st.id)
+                })
+
+            # Sort combined history by date descending
+            history.sort(key=lambda x: x['created_at'], reverse=True)
+
+            return standardized_response(data=history[:50], message="All history retrieved successfully")
+        except Exception as e:
+            logger.error("Error retrieving all history: %s", e)
+            return standardized_response(success=False, message=f"Error retrieving history: {str(e)}", status_code=500)
 
 
 class DashboardMetricsView(APIView):

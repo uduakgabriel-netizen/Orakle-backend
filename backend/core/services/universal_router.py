@@ -20,7 +20,6 @@ from contracts.services.analysis import ContractAnalyzerService
 from contracts.services.file_analysis import FileAnalysisService
 from transactions.services.analysis import TransactionTranslatorService
 from solana.services.analysis import SolanaAnalyzerService
-from ai.services.gemma_service import GemmaService
 
 logger = logging.getLogger('core')
 
@@ -34,7 +33,6 @@ class UniversalRouterService:
     def __init__(self):
         self.classifier = InputClassifier()
         self.address_detector = AddressDetectorService()
-        self.ai_service = GemmaService()
 
     def analyze(self, raw_input=None, uploaded_file=None):
         """
@@ -125,20 +123,11 @@ class UniversalRouterService:
 
             analysis_data = result["data"]
 
-            # AI enrichment
-            ai_summary = self.ai_service.explain_wallet({
-                "chain": "ethereum",
-                "address": address,
-                "risk_score": analysis_data.get("risk_score"),
-                "signals": analysis_data.get("signals", []),
-                "metrics": analysis_data.get("metrics", {})
-            })
-
             return self._success_response(
                 response_type="wallet",
                 chain="ethereum",
                 data=analysis_data,
-                ai_summary=ai_summary,
+                ai_summary=analysis_data.get("ai_summary", ""),
                 message="Ethereum wallet analysis complete."
             )
 
@@ -163,20 +152,11 @@ class UniversalRouterService:
 
             analysis_data = result["data"]
 
-            # AI enrichment
-            ai_summary = self.ai_service.explain_contract({
-                "chain": "ethereum",
-                "address": address,
-                "detected_functions": analysis_data.get("detected_functions", []),
-                "risk_flags": analysis_data.get("risk_flags", []),
-                "risk_score": analysis_data.get("risk_score")
-            })
-
             return self._success_response(
                 response_type="contract",
                 chain="ethereum",
                 data=analysis_data,
-                ai_summary=ai_summary,
+                ai_summary=analysis_data.get("ai_summary", ""),
                 message="Ethereum smart contract analysis complete."
             )
 
@@ -203,22 +183,11 @@ class UniversalRouterService:
 
             analysis_data = result["data"]
 
-            # AI enrichment
-            ai_summary = self.ai_service.translate_transaction({
-                "chain": "ethereum",
-                "tx_hash": tx_hash,
-                "type": analysis_data.get("type"),
-                "from": analysis_data.get("from"),
-                "to": analysis_data.get("to"),
-                "value": analysis_data.get("value"),
-                "summary": analysis_data.get("summary")
-            })
-
             return self._success_response(
                 response_type="transaction",
                 chain="ethereum",
                 data=analysis_data,
-                ai_summary=ai_summary,
+                ai_summary=analysis_data.get("ai_summary", ""),
                 message="Ethereum transaction translation complete."
             )
 

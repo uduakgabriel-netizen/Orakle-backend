@@ -1,6 +1,7 @@
 import logging
 from core.services.etherscan import EtherscanService
 from ..models import TransactionAnalysis
+from ai.services.gemma_service import GemmaService
 
 logger = logging.getLogger('transactions')
 
@@ -8,6 +9,7 @@ logger = logging.getLogger('transactions')
 class TransactionTranslatorService:
     def __init__(self):
         self.etherscan = EtherscanService()
+        self.ai = GemmaService()
 
     def translate(self, tx_hash):
         tx_data = self.etherscan.get_transaction_receipt(tx_hash)
@@ -21,10 +23,20 @@ class TransactionTranslatorService:
         tx_type = self._classify_type(result)
         summary = self._generate_summary(result, tx_type)
 
+        # Generate AI Intelligence
+        ai_summary = self.ai.translate_transaction({
+            "tx_hash": tx_hash,
+            "type": tx_type,
+            "from": result.get('from'),
+            "to": result.get('to'),
+            "value": str(int(result.get('value', '0x0'), 16) / 10**18) + " ETH",
+            "deterministic_summary": summary
+        })
+
         analysis = TransactionAnalysis.objects.create(
             tx_hash=tx_hash,
             parsed_data=result,
-            interpretation=summary
+            interpretation=ai_summary # Store AI summary in interpretation
         )
 
         logger.info("Transaction analysis saved: id=%d hash=%s type=%s", analysis.id, tx_hash, tx_type)
@@ -36,7 +48,8 @@ class TransactionTranslatorService:
                 "from": result.get('from'),
                 "to": result.get('to'),
                 "value": str(int(result.get('value', '0x0'), 16) / 10**18) + " ETH",
-                "summary": summary
+                "summary": summary,
+                "ai_summary": ai_summary
             }
         }
 

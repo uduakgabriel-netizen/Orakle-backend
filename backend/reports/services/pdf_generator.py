@@ -36,7 +36,17 @@ class PDFGeneratorService:
                 f.write("--- DETERMINISTIC ANALYSIS ---\n")
                 f.write(str(analysis_data) + "\n\n")
                 f.write("--- AI REASONING ---\n")
-                f.write(ai_explanation + "\n")
+                if isinstance(ai_explanation, dict):
+                    f.write(f"Threat Assessment: {ai_explanation.get('threat_assessment', 'N/A')}\n")
+                    f.write(f"Summary: {ai_explanation.get('summary', '')}\n")
+                    f.write("Key Findings:\n")
+                    for find in ai_explanation.get('key_findings', []):
+                        f.write(f"- {find}\n")
+                    f.write("Recommendations:\n")
+                    for rec in ai_explanation.get('recommendations', []):
+                        f.write(f"- {rec}\n")
+                else:
+                    f.write(str(ai_explanation) + "\n")
             logger.info("Generated TXT report (fpdf2 unavailable): %s", filename)
             return filename, filepath
 
@@ -115,13 +125,44 @@ class PDFGeneratorService:
             pdf.cell(0, 6, "No additional metrics available.", new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
 
-        # AI Intelligence Summary & Recommendations
+        # AI Intelligence Summary
         pdf.set_font('Helvetica', 'B', 14)
-        pdf.cell(0, 10, 'AI Intelligence Summary & Recommendations', new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 10, 'AI Intelligence Summary', new_x="LMARGIN", new_y="NEXT")
         pdf.set_font('Helvetica', '', 11)
 
-        ai_text_clean = ai_explanation.encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, ai_text_clean, new_x="LMARGIN", new_y="NEXT")
+        if isinstance(ai_explanation, dict):
+            summary = ai_explanation.get('summary', '')
+            threat = ai_explanation.get('threat_assessment', 'N/A')
+            findings = ai_explanation.get('key_findings', [])
+            recommendations = ai_explanation.get('recommendations', [])
+
+            pdf.set_font('Helvetica', 'B', 12)
+            pdf.cell(0, 8, f"Threat Assessment: {threat}", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_font('Helvetica', '', 11)
+            
+            summary_clean = summary.encode('latin-1', 'replace').decode('latin-1')
+            pdf.multi_cell(0, 6, summary_clean, new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(3)
+
+            if findings:
+                pdf.set_font('Helvetica', 'B', 12)
+                pdf.cell(0, 8, "Key Findings", new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font('Helvetica', '', 11)
+                for f in findings:
+                    f_clean = f.encode('latin-1', 'replace').decode('latin-1')
+                    pdf.multi_cell(0, 6, f"- {f_clean}", new_x="LMARGIN", new_y="NEXT")
+                pdf.ln(3)
+
+            if recommendations:
+                pdf.set_font('Helvetica', 'B', 12)
+                pdf.cell(0, 8, "Recommendations", new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font('Helvetica', '', 11)
+                for r in recommendations:
+                    r_clean = r.encode('latin-1', 'replace').decode('latin-1')
+                    pdf.multi_cell(0, 6, f"- {r_clean}", new_x="LMARGIN", new_y="NEXT")
+        else:
+            ai_text_clean = str(ai_explanation).encode('latin-1', 'replace').decode('latin-1')
+            pdf.multi_cell(0, 6, ai_text_clean, new_x="LMARGIN", new_y="NEXT")
 
         pdf.output(filepath)
         logger.info("Generated PDF report: %s", filename)

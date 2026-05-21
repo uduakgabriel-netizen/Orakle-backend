@@ -1,6 +1,5 @@
 import logging
 from .analysis import ContractAnalyzerService
-from ai.services.gemma_service import GemmaService
 from reports.services.pdf_generator import PDFGeneratorService
 
 logger = logging.getLogger('contracts')
@@ -9,7 +8,6 @@ logger = logging.getLogger('contracts')
 class FileAnalysisService:
     def __init__(self):
         self.analyzer = ContractAnalyzerService()
-        self.ai_service = GemmaService()
         self.report_generator = PDFGeneratorService()
 
     def analyze_solidity_file(self, uploaded_file):
@@ -32,12 +30,7 @@ class FileAnalysisService:
             return analysis_result
 
         analysis_data = analysis_result['data']
-
-        ai_explanation = self.ai_service.explain_contract({
-            "source_code_preview": source_code[:1000],
-            "risk_flags": analysis_data['risk_flags'],
-            "risk_score": analysis_data['risk_score']
-        })
+        ai_explanation = analysis_data.get('ai_summary')
 
         filename, filepath = self.report_generator.generate_report(
             "contract_file",

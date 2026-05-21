@@ -3,6 +3,7 @@ import json
 import logging
 from core.services.etherscan import EtherscanService
 from ..models import ContractAnalysis
+from ai.services.gemma_service import GemmaService
 
 logger = logging.getLogger('contracts')
 
@@ -18,6 +19,7 @@ PROXY_PATTERNS = {
 class ContractAnalyzerService:
     def __init__(self):
         self.etherscan = EtherscanService()
+        self.ai = GemmaService()
 
     def analyze(self, address):
         source_data = self.etherscan.get_contract_source_code(address)
@@ -84,6 +86,18 @@ class ContractAnalyzerService:
 
         risk_score = self._calculate_risk_score(flags)
 
+        # Generate AI Intelligence
+        ai_input = {
+            "contract_address": address,
+            "risk_score": risk_score,
+            "signals": flags,
+            "detected_functions": functions
+        }
+        if source_code:
+            ai_input["source_code_preview"] = source_code[:1000]
+
+        ai_summary = self.ai.explain_contract(ai_input)
+
         analysis = ContractAnalysis.objects.create(
             contract_address=address,
             detected_functions=functions,
@@ -101,7 +115,8 @@ class ContractAnalyzerService:
                 "id": analysis.id,
                 "detected_functions": functions,
                 "risk_flags": flags,
-                "risk_score": risk_score
+                "risk_score": risk_score,
+                "ai_summary": ai_summary
             }
         }
 

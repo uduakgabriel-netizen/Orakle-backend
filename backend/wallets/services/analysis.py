@@ -2,6 +2,7 @@ import logging
 import time
 from core.services.etherscan import EtherscanService
 from ..models import WalletAnalysis
+from ai.services.gemma_service import GemmaService
 
 logger = logging.getLogger('wallets')
 
@@ -9,6 +10,7 @@ logger = logging.getLogger('wallets')
 class WalletAnalyzerService:
     def __init__(self):
         self.etherscan = EtherscanService()
+        self.ai = GemmaService()
 
     def analyze(self, address):
         tx_data = self.etherscan.get_wallet_transactions(address)
@@ -23,6 +25,14 @@ class WalletAnalyzerService:
         metrics = self._calculate_metrics(transactions)
         signals = self._detect_signals(transactions, metrics)
         risk_score = self._calculate_risk_score(signals, metrics)
+
+        # Generate AI Intelligence
+        ai_summary = self.ai.explain_wallet({
+            "address": address,
+            "risk_score": risk_score,
+            "signals": signals,
+            "metrics": metrics
+        })
 
         analysis = WalletAnalysis.objects.create(
             wallet_address=address,
@@ -40,7 +50,8 @@ class WalletAnalyzerService:
                 "id": analysis.id,
                 "risk_score": risk_score,
                 "signals": signals,
-                "metrics": metrics
+                "metrics": metrics,
+                "ai_summary": ai_summary
             }
         }
 
