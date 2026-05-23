@@ -20,7 +20,11 @@ class AIWalletAnalysisView(APIView):
             ai_service = GemmaService()
             explanation = ai_service.explain_wallet(structured_data)
             
-            return standardized_response(data={"ai_summary": explanation})
+            response_data = {
+                **explanation,
+                "ai_summary": explanation
+            }
+            return standardized_response(data=response_data)
         except WalletAnalysis.DoesNotExist:
             return standardized_response(success=False, message="Analysis not found", status_code=404)
 
@@ -39,7 +43,11 @@ class AIContractAnalysisView(APIView):
             ai_service = GemmaService()
             explanation = ai_service.explain_contract(structured_data)
             
-            return standardized_response(data={"ai_summary": explanation})
+            response_data = {
+                **explanation,
+                "ai_summary": explanation
+            }
+            return standardized_response(data=response_data)
         except ContractAnalysis.DoesNotExist:
             return standardized_response(success=False, message="Analysis not found", status_code=404)
 
@@ -60,6 +68,10 @@ class AITransactionTranslateView(APIView):
                 ai_service = GemmaService()
                 explanation = ai_service.translate_transaction(structured_data)
             
-            return standardized_response(data={"ai_summary": explanation})
+            response_data = {
+                **explanation,
+                "ai_summary": explanation
+            }
+            return standardized_response(data=response_data)
         except TransactionAnalysis.DoesNotExist:
             return standardized_response(success=False, message="Analysis not found", status_code=404)

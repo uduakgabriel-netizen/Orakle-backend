@@ -38,58 +38,58 @@ SIGNAL_DEFINITIONS = {
     # Contract signals
     ("Owner can mint unlimited supply", "contract"): (
         "critical",
-        "The contract owner has an unrestricted mint function.",
-        "Token supply can be inflated at will, diluting holder value to zero."
+        "MINT FUNCTION: The contract has an unrestricted mint function that allows the owner to create unlimited new tokens. This could lead to hyperinflation and total loss of token value for all holders.",
+        "Recommendation: Implement access controls, add a max supply cap, or use a timelock on the mint function."
     ),
     ("Trading can be paused by owner", "contract"): (
         "high",
-        "The owner can pause all trading on this contract.",
-        "Holders may be unable to sell during a pause, enabling rug-pull scenarios."
+        "PAUSE CONTROL: The owner can pause all trading activity on this contract at any time. During a pause, holders cannot sell or transfer tokens, which enables potential rug-pull scenarios.",
+        "Recommendation: Add a timelock delay before pausing takes effect, or transition to community governance for pause decisions."
     ),
     ("Contract contains blacklist capabilities", "contract"): (
         "high",
-        "The contract has a blacklist mechanism that can block specific addresses.",
-        "Targeted addresses can be permanently frozen from transacting."
+        "BLACKLIST FUNCTION: The owner can blacklist any address, permanently preventing them from interacting with the contract. This centralized control could be used to freeze user funds without recourse.",
+        "Recommendation: Consider renouncing blacklist authority, implementing a transparent appeals process, or delegating to a multi-sig."
     ),
     ("Owner can adjust transaction taxes", "contract"): (
         "high",
-        "The owner can modify buy/sell tax rates after deployment.",
-        "Taxes could be raised to 100%, effectively locking seller funds."
+        "TAX MANIPULATION: The owner can modify buy/sell tax rates after deployment with no upper bound. Taxes could be raised to 99-100%, effectively locking seller funds and preventing any meaningful trades.",
+        "Recommendation: Implement a hard-coded maximum tax cap (e.g., 10%) and add a timelock for tax changes."
     ),
     ("Liquidity or funds withdrawal risk detected", "contract"): (
         "critical",
-        "A function allowing the owner to withdraw pooled liquidity or user funds was detected.",
-        "Direct rug-pull vector — all pooled funds can be drained by the owner."
+        "LIQUIDITY DRAIN RISK: A function was detected that allows the owner to withdraw pooled liquidity or user funds directly. This is a direct rug-pull vector — all pooled funds can be drained instantly by the contract owner.",
+        "Recommendation: Remove owner withdrawal of LP tokens, implement a vesting schedule, or lock liquidity in a third-party locker."
     ),
     ("Owner privileges can be transferred or renounced", "contract"): (
         "medium",
-        "Ownership transfer or renounce functions are present.",
-        "If renounced, the contract becomes immutable; if transferred, a new owner gains all privileges."
+        "OWNERSHIP CONTROL: The contract has transferOwnership and/or renounceOwnership functions. If ownership is transferred, a new unknown party gains all admin privileges. If renounced, the contract becomes permanently immutable.",
+        "Recommendation: Verify ownership status. If not renounced, transition owner privileges to a multi-signature wallet or DAO."
     ),
     ("Contract supports upgrades (logic can be replaced)", "contract"): (
         "high",
-        "The contract contains upgrade mechanisms allowing logic replacement.",
-        "A malicious upgrade could introduce hidden backdoors or drain functions."
+        "UPGRADEABLE CONTRACT: The contract contains upgrade mechanisms that allow the entire logic to be replaced post-deployment. A malicious upgrade could introduce hidden backdoors, drain functions, or break all existing functionality.",
+        "Recommendation: Ensure the implementation contract is immutable, add a timelock to upgrades, and use a multi-sig for admin actions."
     ),
     ("Contract is an upgradeable proxy (logic can be changed by owner)", "contract"): (
         "high",
-        "This is a proxy contract — the implementation logic can be swapped by the owner.",
-        "All contract behavior can be changed post-deployment without holder consent."
+        "PROXY PATTERN: This is a proxy contract — the implementation logic can be completely swapped by the owner at any time. All contract behavior can change post-deployment without holder consent or notification.",
+        "Recommendation: Verify the proxy admin is a multi-sig or DAO. Check if a timelock exists before upgrades take effect."
     ),
     ("Minter roles can be configured by admin", "contract"): (
         "medium",
-        "Admin can assign minting privileges to arbitrary addresses.",
-        "Risk of unauthorized minting if admin key is compromised."
+        "MINTER CONFIGURATION: The admin can assign minting privileges to arbitrary addresses. If the admin key is compromised or malicious, unauthorized addresses could mint tokens freely.",
+        "Recommendation: Restrict minter role configuration to a multi-sig wallet and audit all current minter addresses."
     ),
     ("Contract contains SELFDESTRUCT (funds can be stolen/contract destroyed)", "contract"): (
         "critical",
-        "The SELFDESTRUCT opcode is present in the contract source.",
-        "The entire contract can be destroyed and remaining funds sent to the caller."
+        "SELFDESTRUCT OPCODE: The contract contains the SELFDESTRUCT opcode, which can permanently destroy the contract and send all remaining ETH to a specified address. This is an extreme risk — the entire contract and all funds can be wiped instantly.",
+        "Recommendation: Avoid interacting with contracts containing SELFDESTRUCT. If you own this contract, remove the opcode and redeploy."
     ),
     ("Contract uses DELEGATECALL (risk of logic hijacking)", "contract"): (
         "high",
-        "DELEGATECALL is used, allowing external code to execute in this contract's context.",
-        "If the delegate target is compromised, the contract's storage and funds are at risk."
+        "DELEGATECALL USAGE: The contract uses delegatecall, which allows external code to execute in this contract's context with full access to its storage and funds. If the delegate target is compromised, all assets are at risk.",
+        "Recommendation: Ensure the implementation is immutable or has strict access controls. Verify the delegate target address is trusted."
     ),
 }
 

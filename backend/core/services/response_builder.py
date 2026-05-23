@@ -84,8 +84,70 @@ class IntelligenceResponseBuilder:
         except (ValueError, TypeError):
             confidence_score = 0.95
 
-        if not recommendations:
-            recommendations = []
+        if not recommendations or (isinstance(recommendations, list) and len(recommendations) == 0):
+            # Fallback recommendations if empty
+            threat = str(threat_assessment).lower()
+            is_risky = "high" in threat or "critical" in threat or risk_score > 70
+            is_medium = "medium" in threat or risk_score > 40
+            
+            if type in ('contract', 'contract_file'):
+                if is_risky:
+                    recommendations = [
+                        "CRITICAL: Do not interact with this contract until a full security audit is completed. Multiple high-risk patterns detected.",
+                        "Investigate the mint, pause, and blacklist functions for potential abuse vectors. Verify if owner privileges have been renounced.",
+                        "If you hold tokens from this contract, consider transferring to a secure wallet and monitoring for suspicious owner activity.",
+                        "Audit all proxy upgrade events and verify the implementation contract is not malicious."
+                    ]
+                elif is_medium:
+                    recommendations = [
+                        "Perform deeper audit on detected functions for hidden edge-cases.",
+                        "Monitor proxy upgrade events and admin role actions.",
+                        "Confirm compiler optimization settings are standard."
+                    ]
+                else:
+                    recommendations = [
+                        "Monitor for abnormal transaction or call patterns.",
+                        "Ensure regular security reviews are scheduled.",
+                        "No immediate code remediation required."
+                    ]
+            elif type in ('transaction', 'solana_transaction'):
+                if is_risky:
+                    recommendations = [
+                        "Flag transaction for compliance review.",
+                        "Immediately trace destination wallet address flow.",
+                        "Verify authorization of associated sender key."
+                    ]
+                elif is_medium:
+                    recommendations = [
+                        "Monitor gas fees and fee pattern deviations.",
+                        "Review transaction method signature constraints.",
+                        "Log transaction details for audit trails."
+                    ]
+                else:
+                    recommendations = [
+                        "Continue standard transaction auditing procedures.",
+                        "No direct security concerns detected in this execution.",
+                        "Log transaction hash for compliance logs."
+                    ]
+            else:  # wallet / solana_wallet
+                if is_risky:
+                    recommendations = [
+                        "Immediately investigate large outgoing transfers.",
+                        "Freeze interaction with this address pending review.",
+                        "Report to compliance team for further analysis."
+                    ]
+                elif is_medium:
+                    recommendations = [
+                        "Review transaction patterns for anomalies.",
+                        "Monitor for sudden shifts in transaction volume.",
+                        "Standard precautions recommended."
+                    ]
+                else:
+                    recommendations = [
+                        "Continue standard monitoring - no suspicious patterns detected.",
+                        "No immediate action required.",
+                        "Consider periodic review for ongoing compliance."
+                    ]
             
         if not confidence_reasoning:
             confidence_reasoning = self.explainer.get_confidence_reasoning(
@@ -96,6 +158,7 @@ class IntelligenceResponseBuilder:
             "summary": summary_text,
             "threat_assessment": threat_assessment,
             "key_findings": key_findings if isinstance(key_findings, list) else [],
+            "recommendations": recommendations if isinstance(recommendations, list) else [],
             "confidence_score": confidence_score,
             "confidence_reasoning": confidence_reasoning
         }
