@@ -34,7 +34,9 @@ class AllHistoryView(APIView):
             # Helper to check for report
             def get_report_url(analysis_type, analysis_id):
                 report = Report.objects.filter(analysis_type=analysis_type, related_analysis_id=analysis_id).first()
-                return report.pdf_file.url if report and report.pdf_file else None
+                if report and report.pdf_file:
+                    return request.build_absolute_uri(report.pdf_file.url)
+                return None
 
             for w in wallets:
                 history.append({
@@ -100,19 +102,70 @@ class AllHistoryView(APIView):
             return standardized_response(success=False, message=f"Error retrieving history: {str(e)}", status_code=500)
 
 
+class AnalysisDetailView(APIView):
+    """
+    GET /api/analysis-detail/<type>/<id>
+    Retrieves a previously saved analysis by its specific model type and ID.
+    """
+    def get(self, request, analysis_type, analysis_id):
+        try:
+            from wallets.models import WalletAnalysis
+            from contracts.models import ContractAnalysis
+            from transactions.models import TransactionAnalysis
+            from solana.models import SolanaWalletAnalysis, SolanaTransactionAnalysis
+            from reports.models import Report
+
+            if analysis_type == 'wallet':
+                obj = WalletAnalysis.objects.get(id=analysis_id)
+            elif analysis_type == 'contract':
+                obj = ContractAnalysis.objects.get(id=analysis_id)
+            elif analysis_type == 'transaction':
+                obj = TransactionAnalysis.objects.get(id=analysis_id)
+            elif analysis_type == 'solana_wallet':
+                obj = SolanaWalletAnalysis.objects.get(id=analysis_id)
+            elif analysis_type == 'solana_transaction':
+                obj = SolanaTransactionAnalysis.objects.get(id=analysis_id)
+            else:
+                return standardized_response(success=False, message="Invalid analysis type", status_code=400)
+            
+            # Ensure report_available is updated in the payload if a report exists now
+            payload = obj.response_payload.copy() if obj.response_payload else {}
+            has_report = Report.objects.filter(analysis_type=analysis_type, related_analysis_id=analysis_id).exists()
+            payload['report_available'] = has_report
+            
+            return standardized_response(data=payload, message="Analysis retrieved successfully")
+        except Exception:
+            return standardized_response(success=False, message="Analysis not found", status_code=404)
+
+
 class DashboardMetricsView(APIView):
     def get(self, request):
         try:
+            # Count Ethereum analyses
+            eth_wallet_count = WalletAnalysis.objects.count()
+            eth_contract_count = ContractAnalysis.objects.count()
+            eth_tx_count = TransactionAnalysis.objects.count()
+            
+            # Count Solana analyses
+            solana_wallet_count = SolanaWalletAnalysis.objects.count()
+            solana_tx_count = SolanaTransactionAnalysis.objects.count()
+            
+            # Total wallet analyses (Ethereum + Solana)
+            total_wallet_analyses = eth_wallet_count + solana_wallet_count
+            
+            # Total transaction analyses (Ethereum + Solana)
+            total_tx_analyses = eth_tx_count + solana_tx_count
+            
             metrics = {
-                "wallet_analyses": WalletAnalysis.objects.count(),
-                "contract_analyses": ContractAnalysis.objects.count(),
-                "transaction_analyses": TransactionAnalysis.objects.count(),
+                "wallet_analyses": total_wallet_analyses,
+                "contract_analyses": eth_contract_count,
+                "transaction_analyses": total_tx_analyses,
                 "reports_generated": Report.objects.count(),
-                "high_risk_wallets": WalletAnalysis.objects.filter(risk_score__gt=70).count(),
+                "high_risk_wallets": WalletAnalysis.objects.filter(risk_score__gt=70).count() + SolanaWalletAnalysis.objects.filter(risk_score__gt=70).count(),
                 "high_risk_contracts": ContractAnalysis.objects.filter(risk_score__gt=70).count(),
             }
 
-            # Optional: Risk Distribution
+            # Optional: Risk Distribution (Ethereum wallets)
             wallet_risk_dist = WalletAnalysis.objects.aggregate(
                 low=Count('id', filter=Q(risk_score__lte=40)),
                 medium=Count('id', filter=Q(risk_score__gt=40, risk_score__lte=70)),
@@ -123,7 +176,7 @@ class DashboardMetricsView(APIView):
                 "wallets": wallet_risk_dist
             }
 
-            # Recent activity (bonus)
+            # Recent activity (bonus) - includes both Ethereum and Solana
             recent_wallets = WalletAnalysis.objects.order_by('-created_at')[:5].values('wallet_address', 'risk_score', 'created_at')
             metrics["recent_activity"] = list(recent_wallets)
 

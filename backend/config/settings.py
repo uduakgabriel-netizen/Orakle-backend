@@ -141,8 +141,8 @@ REST_FRAMEWORK = {
 # Etherscan Config
 ETHERSCAN_API_KEY = os.environ.get('ETHERSCAN_API_KEY')
 
-# OpenRouter Config
-OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY')
+# Gemini Config
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 # Ethereum RPC Config (Alchemy / Infura / QuickNode)
 ETH_RPC_URL = os.environ.get('ETH_RPC_URL', '')
@@ -233,10 +233,20 @@ if not ETHERSCAN_API_KEY:
 
 if not ETH_RPC_URL:
     _startup_logger.warning('ETH_RPC_URL is not set. On-chain address detection (wallet vs contract) will be unavailable.')
+else:
+    try:
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider(ETH_RPC_URL, request_kwargs={'timeout': 10}))
+        if w3.is_connected():
+            _startup_logger.info('Connected to Ethereum RPC successfully')
+        else:
+            _startup_logger.warning('Failed to connect to Ethereum RPC. Check ETH_RPC_URL connectivity.')
+    except Exception as e:
+        _startup_logger.warning('Error connecting to Ethereum RPC: %s', e)
 
-_openrouter_key = os.environ.get('OPENROUTER_API_KEY', '')
-if not _openrouter_key or _openrouter_key.startswith('your_'):
-    _startup_logger.warning('OPENROUTER_API_KEY is missing or placeholder. AI reasoning will return fallback responses.')
+_gemini_key = os.environ.get('GEMINI_API_KEY', '')
+if not _gemini_key or _gemini_key.startswith('your_'):
+    _startup_logger.warning('GEMINI_API_KEY is missing or placeholder. AI reasoning will return fallback responses.')
 
 if 'django-insecure-' in SECRET_KEY:
     _startup_logger.warning('SECRET_KEY uses insecure default. Set a strong SECRET_KEY for production.')

@@ -5,6 +5,7 @@ class SolanaWalletAnalysis(models.Model):
     risk_score = models.IntegerField(default=0)
     signals = models.JSONField(default=list)
     metrics = models.JSONField(default=dict)
+    response_payload = models.JSONField(default=dict, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -14,6 +15,7 @@ class SolanaTransactionAnalysis(models.Model):
     signature = models.CharField(max_length=88, db_index=True) # Solana signatures are longer
     interpretation = models.TextField()
     raw_data = models.JSONField(default=dict)
+    response_payload = models.JSONField(default=dict, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

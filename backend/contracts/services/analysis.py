@@ -4,6 +4,7 @@ import logging
 from core.services.etherscan import EtherscanService
 from ..models import ContractAnalysis
 from ai.services.gemma_service import GemmaService
+from core.services.response_builder import IntelligenceResponseBuilder
 
 logger = logging.getLogger('contracts')
 
@@ -20,6 +21,7 @@ class ContractAnalyzerService:
     def __init__(self):
         self.etherscan = EtherscanService()
         self.ai = GemmaService()
+        self.response_builder = IntelligenceResponseBuilder()
 
     def analyze(self, address):
         source_data = self.etherscan.get_contract_source_code(address)
@@ -66,7 +68,7 @@ class ContractAnalyzerService:
             metadata=metadata
         )
 
-    def run_analysis_on_source(self, address, source_code, abi_string, metadata=None):
+    def run_analysis_on_source(self, address, source_code, abi_string, metadata=None, type="contract"):
         try:
             if not abi_string:
                 functions = re.findall(r"function\s+(\w+)", source_code)
@@ -98,26 +100,79 @@ class ContractAnalyzerService:
 
         ai_summary = self.ai.explain_contract(ai_input)
 
+        # Build metadata and metrics
+        is_verified = bool(abi_string and abi_string != 'Contract source code not verified')
+        contract_name = ""
+        compiler_version = ""
+        if metadata:
+            contract_name = metadata.get("name", metadata.get("contract_name", ""))
+            compiler_version = metadata.get("compiler", metadata.get("compiler_version", ""))
+        
+        metadata_payload = {
+            "contract_name": contract_name or "Unknown",
+            "compiler_version": compiler_version or "Unknown",
+            "is_verified": is_verified,
+            "is_proxy": is_proxy
+        }
+
+        dangerous_capabilities = []
+        for flag in flags:
+            if "delegatecall" in flag.lower():
+                dangerous_capabilities.append("delegatecall")
+            if "selfdestruct" in flag.lower():
+                dangerous_capabilities.append("selfdestruct")
+            if "tx.origin" in flag.lower():
+                dangerous_capabilities.append("tx.origin")
+            if "mint" in flag.lower():
+                dangerous_capabilities.append("mint")
+            if "blacklist" in flag.lower():
+                dangerous_capabilities.append("blacklist")
+            if "pause" in flag.lower():
+                dangerous_capabilities.append("pause")
+            if "upgrade" in flag.lower():
+                dangerous_capabilities.append("upgrade")
+            if "timestamp" in flag.lower():
+                dangerous_capabilities.append("block.timestamp")
+
+        metrics = {
+            "contract_name": metadata_payload["contract_name"],
+            "compiler_version": metadata_payload["compiler_version"],
+            "is_verified": metadata_payload["is_verified"],
+            "is_proxy": metadata_payload["is_proxy"],
+            "detected_functions": functions,
+            "dangerous_capabilities": dangerous_capabilities
+        }
+
+        # Create model instance
         analysis = ContractAnalysis.objects.create(
             contract_address=address,
             detected_functions=functions,
             risk_flags=flags,
             risk_score=risk_score,
-            metadata=metadata or {}
+            metadata=metadata_payload
         )
+
+        # Build standardized universal response
+        response_payload = self.response_builder.build(
+            type=type,
+            chain="ethereum",
+            risk_score=risk_score,
+            signals=flags,
+            metrics=metrics,
+            ai_summary=ai_summary,
+            address=address,
+            id=analysis.id
+        )
+
+        analysis.response_payload = response_payload
+        analysis.save()
 
         logger.info("Contract analysis saved: id=%d addr=%s score=%d funcs=%d flags=%d",
                      analysis.id, address, risk_score, len(functions), len(flags))
 
         return {
             "success": True,
-            "data": {
-                "id": analysis.id,
-                "detected_functions": functions,
-                "risk_flags": flags,
-                "risk_score": risk_score,
-                "ai_summary": ai_summary
-            }
+            "data": response_payload
         }
 
     def _detect_proxy_pattern(self, source_code):
@@ -208,6 +263,10 @@ class ContractAnalyzerService:
                 flags.append("Contract contains SELFDESTRUCT (funds can be stolen/contract destroyed)")
             if re.search(r"\bdelegatecall\b", source_code):
                 flags.append("Contract uses DELEGATECALL (risk of logic hijacking)")
+            if re.search(r"\btx\.origin\b", source_code):
+                flags.append("Contract references tx.origin (phishing vulnerability)")
+            if re.search(r"\bblock\.timestamp\b", source_code) or re.search(r"\bnow\b", source_code):
+                flags.append("Contract uses block.timestamp (potential timestamp manipulation)")
             if "mapping(address => bool) private _blacklisted" in source_code:
                 if "Contract contains blacklist capabilities" not in flags:
                     flags.append("Contract contains blacklist capabilities")
@@ -219,6 +278,8 @@ class ContractAnalyzerService:
         risk_weights = {
             "Contract contains SELFDESTRUCT": 50,
             "Contract uses DELEGATECALL": 30,
+            "Contract references tx.origin": 30,
+            "Contract uses block.timestamp": 10,
             "Owner can mint unlimited supply": 40,
             "Trading can be paused by owner": 30,
             "Contract contains blacklist capabilities": 20,

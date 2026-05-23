@@ -6,6 +6,7 @@ class ContractAnalysis(models.Model):
     risk_flags = models.JSONField(default=list)
     risk_score = models.IntegerField(default=0)
     metadata = models.JSONField(default=dict)
+    response_payload = models.JSONField(default=dict, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

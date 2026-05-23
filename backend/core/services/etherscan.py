@@ -1,5 +1,6 @@
 import logging
 import requests
+import time
 from django.conf import settings
 
 logger = logging.getLogger('core')
@@ -7,6 +8,9 @@ logger = logging.getLogger('core')
 
 class EtherscanService:
     BASE_URL = "https://api.etherscan.io/v2/api"
+    MAX_RETRIES = 3
+    INITIAL_BACKOFF = 1  # seconds
+    TIMEOUT = 30  # seconds
 
     def __init__(self):
         self.api_key = settings.ETHERSCAN_API_KEY
@@ -16,16 +20,30 @@ class EtherscanService:
     def _get(self, params):
         params['apikey'] = self.api_key
         params['chainid'] = 1
-        try:
-            response = requests.get(self.BASE_URL, params=params, timeout=15)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.Timeout:
-            logger.error("Etherscan request timed out for action=%s", params.get('action'))
-            return {"status": "0", "message": "Etherscan request timed out"}
-        except requests.exceptions.RequestException as e:
-            logger.error("Etherscan request failed for action=%s: %s", params.get('action'), e)
-            return {"status": "0", "message": f"Etherscan request failed: {e}"}
+        
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = requests.get(self.BASE_URL, params=params, timeout=self.TIMEOUT)
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.Timeout:
+                if attempt < self.MAX_RETRIES - 1:
+                    wait_time = self.INITIAL_BACKOFF * (2 ** attempt)
+                    logger.warning("Etherscan request timed out for action=%s. Retrying in %s seconds (attempt %d/%d)", 
+                                 params.get('action'), wait_time, attempt + 1, self.MAX_RETRIES)
+                    time.sleep(wait_time)
+                else:
+                    logger.error("Etherscan request timed out after %d attempts for action=%s", self.MAX_RETRIES, params.get('action'))
+                    return {"status": "0", "message": "Etherscan request timed out after retries"}
+            except requests.exceptions.RequestException as e:
+                if attempt < self.MAX_RETRIES - 1:
+                    wait_time = self.INITIAL_BACKOFF * (2 ** attempt)
+                    logger.warning("Etherscan request failed for action=%s: %s. Retrying in %s seconds (attempt %d/%d)", 
+                                 params.get('action'), str(e), wait_time, attempt + 1, self.MAX_RETRIES)
+                    time.sleep(wait_time)
+                else:
+                    logger.error("Etherscan request failed after %d attempts for action=%s: %s", self.MAX_RETRIES, params.get('action'), e)
+                    return {"status": "0", "message": f"Etherscan request failed: {e}"}
 
     def get_wallet_transactions(self, address):
         params = {

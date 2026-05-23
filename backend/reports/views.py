@@ -90,10 +90,13 @@ class GenerateReportView(APIView):
 
             logger.info("Report %d generated for %s #%s: %s", report.id, analysis_type, analysis_id, filename)
 
+            # Return absolute URL to avoid 404 issues on frontend
+            pdf_url = request.build_absolute_uri(report.pdf_file.url)
+            
             return standardized_response(
                 data={
                     "report_id": report.id,
-                    "pdf_url": report.pdf_file.url
+                    "pdf_url": pdf_url
                 },
                 message="Report generated successfully",
                 status_code=201
