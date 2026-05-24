@@ -78,7 +78,13 @@ class GenerateReportView(APIView):
                     ai_explanation = ai_service.translate_transaction(analysis_data)
 
             generator = PDFGeneratorService()
-            filename, filepath = generator.generate_report(analysis_type, analysis_data, ai_explanation)
+            filepath = generator.generate_report(
+                analysis_data=analysis_data,
+                ai_explanation=ai_explanation,
+                analysis_type=analysis_type
+            )
+            import os
+            filename = os.path.basename(filepath)
 
             report = Report.objects.create(
                 analysis_type=analysis_type,

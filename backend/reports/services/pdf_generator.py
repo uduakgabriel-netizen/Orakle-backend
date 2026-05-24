@@ -18,9 +18,9 @@ class PDFGeneratorService:
         if not os.path.exists(self.media_path):
             os.makedirs(self.media_path)
 
-    def generate_report(self, analysis_type, analysis_data, ai_explanation):
+    def generate_report(self, analysis_data: dict, ai_explanation: dict, analysis_type: str = "contract") -> str:
         """
-        Generate a PDF report and return (filename, filepath) tuple.
+        Generate a PDF report and return the filepath.
         Falls back to TXT if fpdf2 is unavailable.
         """
         filename = f"report_{analysis_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
@@ -48,7 +48,7 @@ class PDFGeneratorService:
                 else:
                     f.write(str(ai_explanation) + "\n")
             logger.info("Generated TXT report (fpdf2 unavailable): %s", filename)
-            return filename, filepath
+            return filepath
 
         class ReportPDF(FPDF):
             def header(self):
@@ -166,4 +166,4 @@ class PDFGeneratorService:
 
         pdf.output(filepath)
         logger.info("Generated PDF report: %s", filename)
-        return filename, filepath
+        return filepath

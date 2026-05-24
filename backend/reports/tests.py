@@ -9,9 +9,12 @@ class ReportGenerationTests(APITestCase):
         service = PDFGeneratorService()
         analysis_data = {"risk_score": 85, "risk_flags": ["Test Flag"]}
         
-        filename = service.generate_report("wallet", analysis_data, "Test AI summary")
+        filepath = service.generate_report(
+            analysis_data=analysis_data,
+            ai_explanation={"summary": "Test AI summary"},
+            analysis_type="wallet"
+        )
         
-        filepath = os.path.join(settings.BASE_DIR, 'media', 'reports', filename)
         self.assertTrue(os.path.exists(filepath))
         
         # Cleanup

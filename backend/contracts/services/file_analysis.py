@@ -49,22 +49,36 @@ class FileAnalysisService:
         analysis_id = analysis_data.get('id')
 
         # Generate PDF report using the universal analysis shape directly
-        filename, filepath = self.report_generator.generate_report(analysis_data)
-        
-        # Create a Report object in the database so it persists in history
-        from reports.models import Report
-        from django.core.files import File
-        
-        report = Report.objects.create(
-            analysis_type='contract',
-            related_analysis_id=analysis_id
-        )
-        
-        with open(filepath, 'rb') as f:
-            report.pdf_file.save(filename, File(f), save=True)
+        try:
+            pdf_path = self.report_generator.generate_report(
+                analysis_data=analysis_data,
+                ai_explanation=analysis_data.get('ai_summary')
+            )
+        except Exception as e:
+            logger.error(f"PDF generation failed: {e}")
+            pdf_path = None  # Don't break the whole request
 
-        analysis_data["report_url"] = report.pdf_file.url
-        analysis_data["report_available"] = True
+        if pdf_path:
+            try:
+                # Create a Report object in the database so it persists in history
+                from reports.models import Report
+                from django.core.files import File
+                import os
+                
+                filename = os.path.basename(pdf_path)
+                
+                report = Report.objects.create(
+                    analysis_type='contract',
+                    related_analysis_id=analysis_id
+                )
+                
+                with open(pdf_path, 'rb') as f:
+                    report.pdf_file.save(filename, File(f), save=True)
+
+                analysis_data["report_url"] = report.pdf_file.url
+                analysis_data["report_available"] = True
+            except Exception as e:
+                logger.error(f"Failed to save report PDF: {e}")
 
         logger.info("Solidity file analysis complete for %s: score=%d", uploaded_file.name, analysis_data['risk_score'])
 

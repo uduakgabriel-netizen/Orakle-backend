@@ -206,8 +206,7 @@ class UniversalAnalyzeEndpointTests(APITestCase):
 
     @patch('core.services.universal_router.WalletAnalyzerService')
     @patch('core.services.universal_router.AddressDetectorService')
-    @patch('core.services.universal_router.GemmaService')
-    def test_wallet_routing(self, MockAI, MockDetector, MockWallet):
+    def test_wallet_routing(self, MockDetector, MockWallet):
         """Valid ETH address detected as wallet must route to wallet analyzer."""
         MockDetector.return_value.detect_address_type.return_value = {
             "type": "wallet",
@@ -218,7 +217,6 @@ class UniversalAnalyzeEndpointTests(APITestCase):
             "success": True,
             "data": {"risk_score": 25, "signals": [], "metrics": {"tx_count": 42}}
         }
-        MockAI.return_value.explain_wallet.return_value = "This is a low-risk wallet."
 
         response = self.client.post(
             self.URL,
@@ -233,8 +231,7 @@ class UniversalAnalyzeEndpointTests(APITestCase):
 
     @patch('core.services.universal_router.ContractAnalyzerService')
     @patch('core.services.universal_router.AddressDetectorService')
-    @patch('core.services.universal_router.GemmaService')
-    def test_contract_routing(self, MockAI, MockDetector, MockContract):
+    def test_contract_routing(self, MockDetector, MockContract):
         """Valid ETH address detected as contract must route to contract analyzer."""
         MockDetector.return_value.detect_address_type.return_value = {
             "type": "contract",
@@ -245,7 +242,6 @@ class UniversalAnalyzeEndpointTests(APITestCase):
             "success": True,
             "data": {"risk_score": 65, "detected_functions": ["mint"], "risk_flags": ["Owner can mint"]}
         }
-        MockAI.return_value.explain_contract.return_value = "This contract has minting capability."
 
         response = self.client.post(
             self.URL,
@@ -258,15 +254,13 @@ class UniversalAnalyzeEndpointTests(APITestCase):
         self.assertEqual(response.data['data']['chain'], 'ethereum')
 
     @patch('core.services.universal_router.TransactionTranslatorService')
-    @patch('core.services.universal_router.GemmaService')
-    def test_tx_hash_routing(self, MockAI, MockTx):
+    def test_tx_hash_routing(self, MockTx):
         """Valid ETH tx hash must route to transaction translator."""
         tx_hash = "0x" + "a" * 64
         MockTx.return_value.translate.return_value = {
             "success": True,
             "data": {"type": "transfer", "from": "0x1", "to": "0x2", "value": "1.0 ETH", "summary": "Transfer"}
         }
-        MockAI.return_value.translate_transaction.return_value = "A simple ETH transfer."
 
         response = self.client.post(self.URL, {"input": tx_hash}, format='json')
         self.assertEqual(response.status_code, 200)
