@@ -9,3 +9,5 @@ fpdf2
 gunicorn
 whitenoise
 web3
+solana
+cryptography
