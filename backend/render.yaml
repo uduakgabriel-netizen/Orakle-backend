@@ -13,10 +13,20 @@ services:
           name: orakle-db
           property: connectionString
         key: DATABASE_URL
+      - key: SECRET_KEY
+        generateValue: true
       - key: ALLOWED_HOSTS
         value: "*"
       - key: CORS_ALLOWED_ORIGINS
         value: "*"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com"
+      - key: ETHERSCAN_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ETH_RPC_URL
+        sync: false
 
 databases:
   - name: orakle-db
