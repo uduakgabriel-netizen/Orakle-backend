@@ -8,9 +8,9 @@ logger = logging.getLogger('core')
 
 class EtherscanService:
     BASE_URL = "https://api.etherscan.io/v2/api"
-    MAX_RETRIES = 3
-    INITIAL_BACKOFF = 1  # seconds
-    TIMEOUT = 30  # seconds
+    MAX_RETRIES = 2
+    INITIAL_BACKOFF = 0.5  # seconds
+    TIMEOUT = 10  # seconds
 
     def __init__(self):
         self.api_key = settings.ETHERSCAN_API_KEY

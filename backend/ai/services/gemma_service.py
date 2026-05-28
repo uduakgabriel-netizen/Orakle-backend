@@ -58,7 +58,7 @@ class GemmaService:
         self.preferred_model = os.environ.get('PREFERRED_MODEL', self.MODELS[0])
         self.is_configured = bool(self.api_key) and not self.api_key.startswith('your_')
         
-        self.timeout = 45 # Increased timeout for heavy reasoning
+        self.timeout = 15 # Reduced timeout for PaaS stability
 
         if not self.is_configured:
             logger.warning("GemmaService initialized without valid API key.")

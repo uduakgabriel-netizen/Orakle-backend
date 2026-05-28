@@ -19,7 +19,11 @@ class WalletAnalyzerService:
         self.response_builder = IntelligenceResponseBuilder()
 
     def analyze(self, address):
+        start_time = time.time()
+        logger.info("Starting analysis for wallet: %s", address)
+        
         tx_data = self.etherscan.get_wallet_transactions(address)
+        logger.info("Etherscan fetch took %.2fs", time.time() - start_time)
 
         if tx_data.get('status') != '1':
             error_msg = tx_data.get('result', tx_data.get('message', 'Failed to fetch data'))
@@ -27,25 +31,31 @@ class WalletAnalyzerService:
             return {"success": False, "error": error_msg}
 
         transactions = tx_data.get('result', [])
-
+        
+        metrics_start = time.time()
         metrics = self._calculate_metrics(transactions)
         signals = self._detect_signals(transactions, metrics)
         risk_score = self._calculate_risk_score(signals, metrics)
+        logger.info("Metrics and signals calculation took %.2fs", time.time() - metrics_start)
 
         # Generate AI Intelligence
+        ai_start = time.time()
         ai_summary = self.ai.explain_wallet({
             "address": address,
             "risk_score": risk_score,
             "signals": signals,
             "metrics": metrics
         })
+        logger.info("AI reasoning took %.2fs", time.time() - ai_start)
 
+        db_start = time.time()
         analysis = WalletAnalysis.objects.create(
             wallet_address=address,
             risk_score=risk_score,
             signals=signals,
             raw_metrics=metrics
         )
+        logger.info("Database creation took %.2fs", time.time() - db_start)
 
         # Build standardized universal response data
         response_data = self.response_builder.build(
@@ -61,6 +71,7 @@ class WalletAnalyzerService:
 
         analysis.response_payload = response_data
         analysis.save()
+        logger.info("Total analysis time: %.2fs", time.time() - start_time)
 
         logger.info("Wallet analysis saved: id=%d addr=%s score=%d signals=%s",
                      analysis.id, address, risk_score, signals)
