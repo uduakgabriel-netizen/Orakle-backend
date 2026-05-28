@@ -21,7 +21,7 @@ class WalletAnalysisView(APIView):
                 return standardized_response(data=result.get('data'), message="Wallet analysis complete")
             return standardized_response(success=False, message=result.get('error'), status_code=400)
         except Exception as e:
-            return standardized_response(success=False, message="An internal error occurred during wallet analysis.", status_code=500)
+            return standardized_response(success=False, message=f"Internal error: {str(e)}", status_code=500)
 
 class WalletHistoryView(APIView):
     def get(self, request, wallet_address):

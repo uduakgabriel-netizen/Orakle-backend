@@ -21,7 +21,7 @@ class ContractAnalysisView(APIView):
                 return standardized_response(data=result.get('data'), message="Contract analysis complete")
             return standardized_response(success=False, message=result.get('error'), status_code=400)
         except Exception as e:
-            return standardized_response(success=False, message="An internal error occurred during contract analysis.", status_code=500)
+            return standardized_response(success=False, message=f"Internal error: {str(e)}", status_code=500)
 
 class ContractHistoryView(APIView):
     def get(self, request, contract_address):
